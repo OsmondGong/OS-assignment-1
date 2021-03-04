@@ -12,6 +12,9 @@
    However, your implementation should accept at least BUFFER_SIZE 
    prior to blocking
 */
+struct lock *lock1;
+struct cv *full;
+struct cv *empty;
 
 #define BUFFLEN (BUFFER_SIZE + 1)
 
@@ -30,17 +33,14 @@ data_item_t * consumer_receive(void)
 {
         data_item_t * item;
 
-
+        lock_acquire(lock1);
         while(head == tail) {
-                /* busy wait */
+                cv_wait(empty, lock1);
         }
         item = item_buffer[tail];
         tail = (tail + 1) % BUFFLEN;
-
-        
-        /******************
-         * Remove above here
-         */
+        cv_signal(full, lock1);
+        lock_release(lock1);
 
         return item;
 }
@@ -51,11 +51,14 @@ data_item_t * consumer_receive(void)
 
 void producer_send(data_item_t *item)
 {
+        lock_acquire(lock1);
         while((head + 1) % BUFFLEN == tail) {
-                /* busy wait */
+                cv_wait(full, lock1);
         }
         item_buffer[head] = item;
         head = (head + 1) % BUFFLEN;
+        cv_signal(empty, lock1);
+        lock_release(lock1);
 }
 
 
@@ -67,11 +70,26 @@ void producer_send(data_item_t *item)
 void producerconsumer_startup(void)
 {
         head = tail = 0;
+        lock1 = lock_create("lock1");
+        if (lock1 == NULL) {
+                panic("I'm dead");
+        }
+        full = cv_create("full");
+        if (full == NULL) {
+                panic("I'm dead");
+        }
+        empty = cv_create("empty");
+        if (empty == NULL) {
+                panic("I'm dead");
+        }
 
 }
 
 /* Perform any clean-up you need here */
 void producerconsumer_shutdown(void)
 {
+        lock_destroy(lock1);
+        cv_destroy(full);
+        cv_destroy(empty);
 }
 

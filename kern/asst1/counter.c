@@ -27,47 +27,32 @@ static volatile int the_counter;
  * INSERT ANY GLOBAL VARIABLES YOU REQUIRE HERE
  * ********************************************************************
  */
-
+struct lock *lock1;
 
 void counter_increment(void)
 {
+        lock_acquire(lock1);
         the_counter = the_counter + 1;
+        lock_release(lock1);
 }
-
 void counter_decrement(void)
 {
+        lock_acquire(lock1);
         the_counter = the_counter - 1;
+        lock_release(lock1);
 }
-
 int counter_initialise(int val)
 {
         the_counter = val;
-
-        /*
-         * ********************************************************************
-         * INSERT ANY INITIALISATION CODE YOU REQUIRE HERE
-         * ********************************************************************
-         */
-        
-        
-        /*
-         * Return 0 to indicate success
-         * Return non-zero to indicate error.
-         * e.g. 
-         * return ENOMEM
-         * indicates an allocation failure to the caller 
-         */
-        
+        lock1 = lock_create("lock1");
+        if (lock1 == NULL) {
+                return ENOMEM;
+        }
         return 0;
 }
 
 int counter_read_and_destroy(void)
 {
-        /*
-         * **********************************************************************
-         * INSERT ANY CLEANUP CODE YOU REQUIRE HERE
-         * **********************************************************************
-         */
-
+        lock_destroy(lock1);
         return the_counter;
 }

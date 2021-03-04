@@ -8,6 +8,7 @@
 
 /********************************************************************************
  Document your resource order here. 
+ Resource B is always taken before resource A
 ********************************************************************************/
 
 
@@ -41,16 +42,16 @@ static void bill(void * unusedpointer, unsigned long unusedint)
                 
                 lock_release(lockb);
 
-                lock_acquire(locka);
                 lock_acquire(lockb);
+                lock_acquire(locka);
 
                                         /* Bill now holds both locks and can do
                                          what ever bill needs to do while holding
                                          the locks */
                 holds_locka_and_b();
                 
-                lock_release(lockb);
                 lock_release(locka);
+                lock_release(lockb);
         }
 
         kprintf("Bill says 'bye'\n");

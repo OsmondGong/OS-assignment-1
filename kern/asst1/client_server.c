@@ -9,7 +9,12 @@
  * Declare any variables you need here to implement and
  *  synchronise your queues and/or requests.
  */
+request_t * queue[301];
 
+volatile int head, tail;
+
+struct lock *lock1;
+struct cv *empty;
 
 /* work_queue_enqueue():
  *
@@ -31,6 +36,11 @@
 void work_queue_enqueue(request_t *req)
 {
         (void) req; /* Avoid compiler error */
+        lock_acquire(lock1);
+        queue[head] = req;
+        head++;
+        cv_signal(empty, lock1);
+        lock_release(lock1);
 }
 
 /* 
@@ -50,8 +60,15 @@ void work_queue_enqueue(request_t *req)
 
 request_t *work_queue_get_next(void)
 {
-
-        return NULL;
+        request_t *item;
+        lock_acquire(lock1);
+        while(head == 0) {
+                cv_wait(empty, lock1);
+        }
+        item = queue[head - 1];
+        head--;
+        lock_release(lock1);
+        return item;
 }
 
 
@@ -71,7 +88,16 @@ request_t *work_queue_get_next(void)
 
 int work_queue_setup(void)
 {
-        return ENOSYS;
+        head = tail = 0;
+        lock1 = lock_create("lock1");
+        if (lock1 == NULL) {
+                return ENOSYS;
+        }
+        empty = cv_create("empty");
+        if (empty == NULL) {
+                return ENOSYS;
+        }
+        return 0;
 
 }
 
@@ -88,5 +114,6 @@ int work_queue_setup(void)
 
 void work_queue_shutdown(void)
 {
-
+        lock_destroy(lock1);
+        cv_destroy(empty);
 }
