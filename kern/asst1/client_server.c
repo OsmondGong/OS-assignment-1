@@ -9,11 +9,13 @@
  * Declare any variables you need here to implement and
  *  synchronise your queues and/or requests.
  */
-request_t * queue[301];
+#define QUEUELEN 51
+request_t * queue[QUEUELEN];
 
 volatile int head, tail;
 
 struct lock *lock1;
+struct cv *full;
 struct cv *empty;
 
 /* work_queue_enqueue():
@@ -35,10 +37,12 @@ struct cv *empty;
 
 void work_queue_enqueue(request_t *req)
 {
-        (void) req; /* Avoid compiler error */
         lock_acquire(lock1);
+        while((head + 1) % QUEUELEN == tail) {
+                cv_wait(full, lock1);
+        }
         queue[head] = req;
-        head++;
+        head = (head + 1) % QUEUELEN;
         cv_signal(empty, lock1);
         lock_release(lock1);
 }
@@ -62,12 +66,14 @@ request_t *work_queue_get_next(void)
 {
         request_t *item;
         lock_acquire(lock1);
-        while(head == 0) {
+        while(head == tail) {
                 cv_wait(empty, lock1);
         }
-        item = queue[head - 1];
-        head--;
+        item = queue[tail];
+        tail = (tail + 1) % QUEUELEN;
+        cv_signal(full, lock1);
         lock_release(lock1);
+
         return item;
 }
 
@@ -93,6 +99,10 @@ int work_queue_setup(void)
         if (lock1 == NULL) {
                 return ENOSYS;
         }
+        full = cv_create("full");
+        if (full == NULL) {
+                panic("I'm dead");
+        }
         empty = cv_create("empty");
         if (empty == NULL) {
                 return ENOSYS;
@@ -115,5 +125,6 @@ int work_queue_setup(void)
 void work_queue_shutdown(void)
 {
         lock_destroy(lock1);
+        cv_destroy(full);
         cv_destroy(empty);
 }

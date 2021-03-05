@@ -8,7 +8,7 @@
 
 /********************************************************************************
  Document your resource order here. 
- Resource B is always taken before resource A
+ Resource B is always acquired before resource A when both resources are required.
 ********************************************************************************/
 
 
